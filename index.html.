@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Papernest Sales Monopoly Go</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        papernest: {
+                            blue: '#0052FF',
+                            blueDark: '#003ECC',
+                            yellow: '#FFC700',
+                            purple: '#7C3AED',
+                            bg: '#F0F4FF'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: #E2E8F0;
+            color: #0F172A; 
+        }
+
+        .font-game { font-family: 'Fredoka', sans-serif; }
+
+        .board-wrapper {
+            width: 100%;
+            height: calc(100vh - 85px);
+            max-height: calc(100vh - 85px);
+            aspect-ratio: 1 / 1;
+        }
+
+        .monopoly-grid {
+            display: grid;
+            grid-template-columns: 2.5fr repeat(9, 1fr) 2.5fr;
+            grid-template-rows: 2.5fr repeat(9, 1fr) 2.5fr;
+            width: 100%;
+            height: 100%;
+        }
+
+        .board-cell {
+            background: #FFFFFF;
+            border: 2px solid #CBD5E1;
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.1);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            position: relative;
+        }
+        .board-cell:hover {
+            transform: scale(1.05);
+            z-index: 30;
+            border-color: #0052FF;
+            box-shadow: 0 10px 20px rgba(0,82,255,0.25);
+        }
+
+        @keyframes diceShake {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(-20deg) scale(1.2); }
+            50% { transform: rotate(20deg) scale(0.9); }
+            75% { transform: rotate(-10deg) scale(1.1); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        .dice-rolling { animation: diceShake 0.15s infinite; }
+
+        @keyframes cardPop {
+            0% { transform: scale(0.3) translateY(100px); opacity: 0; }
+            70% { transform: scale(1.08) translateY(-10px); opacity: 1; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .animate-card-pop { animation: cardPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #F1F5F9; }
+        ::-webkit-scrollbar-thumb { background: #0052FF; border-radius: 4px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden select-none bg-slate-200">
+
+    <!-- LOBBY -->
+    <div id="login-screen" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white border-4 border-papernest-blue p-8 rounded-3xl shadow-2xl max-w-md w-full relative overflow-hidden">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-papernest-blue text-white rounded-2xl font-black text-3xl flex items-center justify-center mx-auto mb-2 shadow-lg shadow-blue-500/40 font-game">p</div>
+                <h1 class="text-3xl font-black text-slate-900 font-game tracking-wide">PAPERNEST GO</h1>
+                <p class="text-xs font-bold text-papernest-blue uppercase tracking-wider">Édition Commerciale • Challenge Floor</p>
+            </div>
+
+            <form id="join-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-black uppercase text-slate-500 mb-1">Code PIN du Floor</label>
+                    <input type="text" id="pin-input" value="PN-2026" maxlength="8" required class="w-full bg-slate-100 border-2 border-slate-300 rounded-2xl px-4 py-3 text-slate-900 font-mono font-bold text-center text-xl tracking-widest focus:outline-none focus:border-papernest-blue transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-black uppercase text-slate-500 mb-1">Prénom / Commercial</label>
+                    <input type="text" id="name-input" placeholder="ex: Lucas Closer" required class="w-full bg-slate-100 border-2 border-slate-300 rounded-2xl px-4 py-3 text-slate-900 font-bold focus:outline-none focus:border-papernest-blue transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-black uppercase text-slate-500 mb-2">Choisissez votre Pion :</label>
+                    <div class="grid grid-cols-4 gap-2" id="pawn-selector">
+                        <button type="button" data-pawn="🚗" class="pawn-btn p-3 text-2xl bg-slate-100 rounded-2xl border-2 border-slate-200 hover:border-papernest-blue transition flex items-center justify-center border-papernest-blue bg-blue-50">🚗</button>
+                        <button type="button" data-pawn="🎩" class="pawn-btn p-3 text-2xl bg-slate-100 rounded-2xl border-2 border-slate-200 hover:border-papernest-blue transition flex items-center justify-center">🎩</button>
+                        <button type="button" data-pawn="🚀" class="pawn-btn p-3 text-2xl bg-slate-100 rounded-2xl border-2 border-slate-200 hover:border-papernest-blue transition flex items-center justify-center">🚀</button>
+                        <button type="button" data-pawn="⚡" class="pawn-btn p-3 text-2xl bg-slate-100 rounded-2xl border-2 border-slate-200 hover:border-papernest-blue transition flex items-center justify-center">⚡</button>
+                        <button type="button" data-pawn="👑" class="pawn-btn p-3 text-2xl bg-slate-100 rounded-2xl border-2 border-slate-200 hover:border-papernest-blue transition flex items-center justify-center">👑</button>
+                        <button type="button" data-pawn="💼" class="pawn-btn p-3 text-2xl bg-slate-100 rounded-2xl border-2 border-slate-200 hover:border-papernest-blue transition flex items-center justify-center">💼</button>
+                        <button type="button" data-pawn="🐕" class="pawn-btn p-3 text-2xl bg-slate-100 rounded-2xl border-2 border-slate-200 hover:border-papernest-blue transition flex items-center justify-center">🐕</button>
+                        <button type="button" data-pawn="🏆" class="pawn-btn p-3 text-2xl bg-slate-100 rounded-2xl border-2 border-slate-200 hover:border-papernest-blue transition flex items-center justify-center">🏆</button>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-papernest-blue hover:bg-papernest-blueDark text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-500/30 text-lg transition transform active:scale-95 font-game tracking-wider">
+                    REJOINDRE LE FLOOR !
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- HEADER BAR -->
+    <header class="bg-white border-b-4 border-slate-300 px-6 py-2 flex items-center justify-between shrink-0 z-30 shadow-sm">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <div class="w-10 h-10 bg-papernest-blue text-white rounded-xl font-black text-2xl flex items-center justify-center font-game shadow-md">p</div>
+                <div>
+                    <span class="font-black text-slate-900 text-xl font-game leading-none block">papernest GO</span>
+                    <span class="text-[10px] font-extrabold text-papernest-blue uppercase tracking-widest">Floor Challenge</span>
+                </div>
+            </div>
+            <div class="bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-1 flex items-center gap-2">
+                <i data-lucide="calendar" class="w-4 h-4 text-papernest-blue"></i>
+                <span class="text-xs font-black text-slate-700 font-game">Saison : <span class="text-papernest-blue">1 mois</span></span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Bouton Mode Admin -->
+            <button id="btn-open-admin" class="bg-slate-800 hover:bg-slate-900 text-white font-black text-xs px-3 py-2.5 rounded-2xl shadow-md flex items-center gap-1.5 transition font-game">
+                <i data-lucide="shield-check" class="w-4 h-4 text-amber-400"></i> ADMIN
+            </button>
+
+            <button id="btn-show-leaderboard" class="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs px-4 py-2.5 rounded-2xl shadow-md border-b-4 border-amber-600 flex items-center gap-2 transition font-game">
+                <i data-lucide="trophy" class="w-4 h-4"></i> CLASSEMENT (25)
+            </button>
+
+            <button id="btn-declare-sale" class="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs px-4 py-2.5 rounded-2xl shadow-md border-b-4 border-emerald-700 flex items-center gap-2 transition font-game">
+                <i data-lucide="zap" class="w-4 h-4 fill-white"></i> +1 VENTE (+2 LANCERS)
+            </button>
+
+            <div class="bg-blue-50 border-2 border-blue-200 rounded-2xl px-4 py-1.5 flex items-center gap-3">
+                <span id="player-pawn-display" class="text-2xl">🚗</span>
+                <div>
+                    <div id="player-name-display" class="text-xs font-black text-slate-900 font-game">---</div>
+                    <div class="text-[10px] font-bold text-papernest-blue"><span id="player-rolls-left">0</span> lancer(s)</div>
+                </div>
+                <div class="pl-3 border-l-2 border-blue-200">
+                    <div id="player-cash-display" class="text-base font-black text-slate-900 font-game">1 500 €</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- LAYOUT PRINCIPAL -->
+    <div class="flex-1 flex overflow-hidden p-3 gap-3">
+
+        <!-- PANNEAU GAUCHE -->
+        <aside class="w-72 bg-white rounded-3xl border-4 border-slate-300 shadow-lg flex flex-col p-4 shrink-0 justify-between">
+            <div class="bg-slate-100 rounded-2xl p-4 border-2 border-slate-200 text-center">
+                <span class="text-xs font-black text-slate-400 uppercase tracking-wider block mb-3 font-game">Lancer les Dés</span>
+                
+                <div class="flex justify-center gap-4 my-3 h-16 items-center">
+                    <div id="die-1" class="w-14 h-14 bg-white border-4 border-papernest-blue rounded-2xl shadow-lg flex items-center justify-center text-3xl font-black text-papernest-blue font-game">?</div>
+                    <div id="die-2" class="w-14 h-14 bg-white border-4 border-papernest-blue rounded-2xl shadow-lg flex items-center justify-center text-3xl font-black text-papernest-blue font-game">?</div>
+                </div>
+
+                <button id="btn-roll-dice" class="w-full bg-papernest-blue hover:bg-papernest-blueDark disabled:opacity-40 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-500/30 text-lg border-b-4 border-blue-900 transition font-game tracking-wider">
+                    LANCER !
+                </button>
+            </div>
+
+            <button id="btn-open-trade" class="w-full bg-amber-100 hover:bg-amber-200 border-2 border-amber-300 text-amber-900 font-black py-3 rounded-2xl text-xs flex items-center justify-center gap-2 transition font-game">
+                <i data-lucide="handshake" class="w-4 h-4"></i> Échange Commercial (48h)
+            </button>
+
+            <div class="h-44 bg-slate-50 rounded-2xl p-3 border-2 border-slate-200 flex flex-col">
+                <span class="text-[10px] font-black uppercase text-slate-400 mb-2 font-game flex items-center gap-1">
+                    <i data-lucide="activity" class="w-3 h-3 text-emerald-500"></i> Journal du Floor
+                </span>
+                <div id="game-logs" class="flex-1 overflow-y-auto space-y-1 text-[10px] font-bold text-slate-600"></div>
+            </div>
+        </aside>
+
+        <!-- CENTRE : PLATEAU 40 CASES -->
+        <main class="flex-1 flex items-center justify-center overflow-hidden">
+            <div class="board-wrapper bg-slate-300 border-4 border-slate-400 rounded-3xl p-2 shadow-2xl relative overflow-hidden">
+                <div id="monopoly-board" class="monopoly-grid gap-1.5 bg-slate-200">
+                    
+                    <div class="col-start-2 col-end-11 row-start-2 row-end-11 bg-gradient-to-br from-blue-500 via-papernest-blue to-indigo-700 rounded-2xl border-4 border-white p-6 flex flex-col items-center justify-between relative shadow-inner text-white overflow-hidden">
+                        <div class="text-center mt-2">
+                            <h2 class="text-4xl font-black font-game tracking-wider drop-shadow-md flex items-center justify-center gap-2">
+                                <span class="w-10 h-10 bg-white text-papernest-blue rounded-xl font-black text-2xl flex items-center justify-center shadow-md">p</span> papernest GO
+                            </h2>
+                            <p class="text-xs font-bold text-yellow-300 uppercase tracking-widest mt-1">Saison Reims Commerciale</p>
+                        </div>
+
+                        <div class="flex gap-8 my-auto">
+                            <div class="w-32 h-44 bg-gradient-to-br from-yellow-300 to-amber-500 text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-between shadow-2xl border-4 border-white rotate-[-6deg]">
+                                <span class="text-xs font-black uppercase font-game">CHANCE</span>
+                                <i data-lucide="sparkles" class="w-10 h-10 text-slate-950"></i>
+                                <span class="text-[8px] font-black uppercase text-slate-800">Opportunités</span>
+                            </div>
+                            <div class="w-32 h-44 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-2xl p-3 flex flex-col items-center justify-between shadow-2xl border-4 border-white rotate-[6deg]">
+                                <span class="text-xs font-black uppercase font-game">COMMUNAUTÉ</span>
+                                <i data-lucide="users" class="w-10 h-10 text-white"></i>
+                                <span class="text-[8px] font-black uppercase text-blue-200">Floor & Closing</span>
+                            </div>
+                        </div>
+
+                        <div class="text-center text-xs font-black text-white/80 font-game">
+                            1 Vente = 2 Lancers • Payer les loyers automatique
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+
+        <!-- PANNEAU DROITE -->
+        <aside class="w-72 bg-white rounded-3xl border-4 border-slate-300 shadow-lg flex flex-col p-4 shrink-0">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-black uppercase text-slate-400 font-game flex items-center gap-1.5">
+                    <i data-lucide="building-2" class="w-4 h-4 text-papernest-blue"></i> Vos Possessions
+                </span>
+                <span id="my-properties-count" class="text-xs font-black bg-blue-100 text-papernest-blue px-2.5 py-0.5 rounded-full font-game">0</span>
+            </div>
+            <div id="my-properties-list" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+        </aside>
+
+    </div>
+
+    <!-- MODAL ADMIN -->
+    <div id="admin-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="bg-white border-4 border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b-2 border-slate-200 mb-4">
+                <h3 class="text-lg font-black text-slate-900 font-game flex items-center gap-2">
+                    <i data-lucide="shield" class="w-5 h-5 text-amber-500"></i> Panneau d'Administration
+                </h3>
+                <button id="btn-close-admin" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Sélectionnez le Commercial :</label>
+                    <select id="admin-target-player" class="w-full bg-slate-100 border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"></select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="admin-add-cash" class="bg-emerald-500 hover:bg-emerald-600 text-white font-black py-2 rounded-xl text-xs font-game">+ 500 € Cash</button>
+                    <button id="admin-sub-cash" class="bg-red-500 hover:bg-red-600 text-white font-black py-2 rounded-xl text-xs font-game">- 200 € Cash</button>
+                    <button id="admin-add-rolls" class="bg-blue-500 hover:bg-blue-600 text-white font-black py-2 rounded-xl text-xs font-game">+ 5 Lancers</button>
+                    <button id="admin-reset-game" class="bg-slate-900 hover:bg-black text-white font-black py-2 rounded-xl text-xs font-game">Reset la Partie</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CARTE -->
+    <div id="card-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md hidden items-center justify-center p-4">
+        <div id="card-box" class="bg-white border-4 border-slate-900 rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl relative animate-card-pop">
+            <div id="card-badge" class="inline-block px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider mb-3 bg-amber-400 text-slate-950 font-game">CARTE</div>
+            <h3 id="card-title" class="text-xl font-black text-slate-900 mb-2 font-game">Titre</h3>
+            <p id="card-desc" class="text-sm font-bold text-slate-600 mb-6 leading-relaxed">Description...</p>
+            <button id="btn-card-ok" class="w-full bg-papernest-blue hover:bg-papernest-blueDark text-white font-black py-3 rounded-2xl shadow-lg text-sm font-game">COMPRIS !</button>
+        </div>
+    </div>
+
+    <!-- MODAL CLASSEMENT -->
+    <div id="leaderboard-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="bg-white border-4 border-slate-300 rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex items-center justify-between pb-3 border-b-2 border-slate-200 mb-3">
+                <h3 class="text-xl font-black text-slate-900 font-game flex items-center gap-2">
+                    <i data-lucide="trophy" class="w-6 h-6 text-amber-500"></i> CLASSEMENT FLOOR (25 MAX)
+                </h3>
+                <button id="btn-close-leaderboard" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div id="full-leaderboard-list" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+        </div>
+    </div>
+
+    <!-- MODAL PROPRIÉTÉ -->
+    <div id="property-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-white border-4 border-slate-300 rounded-3xl max-w-xs w-full p-5 shadow-2xl relative overflow-hidden">
+            <div id="modal-card-header" class="h-14 -mx-5 -mt-5 p-3 text-white font-black text-base flex items-center justify-between mb-3 font-game">
+                <span id="modal-prop-name">Propriété</span>
+                <span id="modal-prop-price" class="text-xs bg-black/30 px-3 py-1 rounded-full">200 €</span>
+            </div>
+
+            <div class="space-y-2 text-xs font-bold text-slate-600">
+                <div class="flex justify-between border-b pb-1">
+                    <span>Loyer De Base :</span>
+                    <span id="modal-rent-base" class="text-slate-900 font-black">0 €</span>
+                </div>
+            </div>
+
+            <div id="modal-actions" class="mt-5 flex gap-2">
+                <button id="btn-modal-buy" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-black py-3 rounded-2xl shadow-md text-xs font-game">ACHETER</button>
+                <button id="btn-modal-close" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-black px-4 py-3 rounded-2xl text-xs font-game">FERMER</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- LES 40 CASES EXACTES ---
+        const BOARD_SPACES = [
+            { id: 0, name: "Départ (+200€)", type: "start", price: 0, color: "#0F172A" },
+            { id: 1, name: "Pierre Taittinger", type: "property", group: 1, price: 60, rent: [2, 10, 30, 90, 160, 250], color: "#8B4513" },
+            { id: 2, name: "Communauté 1", type: "community", color: "#7C3AED" },
+            { id: 3, name: "Rue de la Rafale", type: "property", group: 1, price: 60, rent: [4, 20, 60, 180, 320, 450], color: "#8B4513" },
+            { id: 4, name: "Taxe URSSAF", type: "tax", amount: 200, color: "#64748B" },
+            { id: 5, name: "La Salle de Formation", type: "station", price: 200, rent: [25, 50, 100, 200], color: "#0284C7" },
+            { id: 6, name: "Rue de Périgueux", type: "property", group: 2, price: 100, rent: [6, 30, 90, 270, 400, 550], color: "#38BDF8" },
+            { id: 7, name: "Chance 1", type: "chance", color: "#FFC700" },
+            { id: 8, name: "Rue de Lisieux", type: "property", group: 2, price: 100, rent: [6, 30, 90, 270, 400, 550], color: "#38BDF8" },
+            { id: 9, name: "Rue de la Pérouse", type: "property", group: 2, price: 120, rent: [8, 40, 100, 300, 450, 600], color: "#38BDF8" },
+            { id: 10, name: "Audit / Visite", type: "jail", color: "#475569" },
+            { id: 11, name: "Avenue de Laon", type: "property", group: 3, price: 140, rent: [10, 50, 150, 450, 625, 750], color: "#EC4899" },
+            { id: 12, name: "Enedis", type: "utility", price: 150, color: "#0284C7" },
+            { id: 13, name: "Rue Neufchâtel", type: "property", group: 3, price: 140, rent: [10, 50, 150, 450, 625, 750], color: "#EC4899" },
+            { id: 14, name: "Saint-Thierry", type: "property", group: 3, price: 160, rent: [12, 60, 180, 500, 700, 900], color: "#EC4899" },
+            { id: 15, name: "La Chill Room", type: "station", price: 200, rent: [25, 50, 100, 200], color: "#0284C7" },
+            { id: 16, name: "Rue Clairmarais", type: "property", group: 4, price: 180, rent: [14, 70, 200, 550, 750, 950], color: "#F97316" },
+            { id: 17, name: "Communauté 2", type: "community", color: "#7C3AED" },
+            { id: 18, name: "Rue Émile Zola", type: "property", group: 4, price: 180, rent: [14, 70, 200, 550, 750, 950], color: "#F97316" },
+            { id: 19, name: "Rue Danton", type: "property", group: 4, price: 200, rent: [16, 80, 220, 600, 800, 1000], color: "#F97316" },
+            { id: 20, name: "Pause Café", type: "parking", color: "#475569" },
+            { id: 21, name: "Rue Gambetta", type: "property", group: 5, price: 220, rent: [18, 90, 250, 700, 875, 1050], color: "#EF4444" },
+            { id: 22, name: "Chance 2", type: "chance", color: "#FFC700" },
+            { id: 23, name: "Rue du Barbâtre", type: "property", group: 5, price: 220, rent: [18, 90, 250, 700, 875, 1050], color: "#EF4444" },
+            { id: 24, name: "Fléchambault", type: "property", group: 5, price: 240, rent: [20, 100, 300, 750, 925, 1100], color: "#EF4444" },
+            { id: 25, name: "Le plateau 3.1", type: "station", price: 200, rent: [25, 50, 100, 200], color: "#0284C7" },
+            { id: 26, name: "Rue du Temple", type: "property", group: 6, price: 260, rent: [22, 110, 330, 800, 975, 1150], color: "#EAB308" },
+            { id: 27, name: "Rue de Mars", type: "property", group: 6, price: 260, rent: [22, 110, 330, 800, 975, 1150], color: "#EAB308" },
+            { id: 28, name: "GRDF", type: "utility", price: 150, color: "#0284C7" },
+            { id: 29, name: "Rue de Tambour", type: "property", group: 6, price: 280, rent: [24, 120, 360, 850, 1025, 1200], color: "#EAB308" },
+            { id: 30, name: "Allez en Audit", type: "go_to_jail", color: "#475569" },
+            { id: 31, name: "Rue Libergier", type: "property", group: 7, price: 300, rent: [26, 130, 390, 900, 1100, 1275], color: "#10B981" },
+            { id: 32, name: "Rue Cérès", type: "property", group: 7, price: 300, rent: [26, 130, 390, 900, 1100, 1275], color: "#10B981" },
+            { id: 33, name: "Communauté 3", type: "community", color: "#7C3AED" },
+            { id: 34, name: "Rue Clovis", type: "property", group: 7, price: 320, rent: [28, 150, 450, 1000, 1200, 1400], color: "#10B981" },
+            { id: 35, name: "Le plateau 3.2", type: "station", price: 200, rent: [25, 50, 100, 200], color: "#0284C7" },
+            { id: 36, name: "Chance 3", type: "chance", color: "#FFC700" },
+            { id: 37, name: "Boulevard Lundy", type: "property", group: 8, price: 350, rent: [35, 175, 500, 1100, 1300, 1500], color: "#0052FF" },
+            { id: 38, name: "Taxe CRM", type: "tax", amount: 100, color: "#64748B" },
+            { id: 39, name: "Rue de Moissons", type: "property", group: 8, price: 400, rent: [50, 200, 600, 1400, 1700, 2000], color: "#0052FF" }
+        ];
+
+        const COMMUNITY_CARDS = [
+            { title: "Raccroché-Vendu !", desc: "Box + Énergie sur le même appel. Recevez 150 €.", action: p => p.cash += 150 },
+            { title: "Top Closer", desc: "Objectif dépassé à 130%. Recevez 200 €.", action: p => p.cash += 200 },
+            { title: "Erreur RIB", desc: "Contrat rejeté. Payez 50 €.", action: p => p.cash -= 50 }
+        ];
+
+        const CHANCE_CARDS = [
+            { title: "Gros Deal B2B", desc: "Signature majeure ! Recevez 200 €.", action: p => p.cash += 200 },
+            { title: "Sprint Ventes", desc: "Avancez jusqu'à la case Départ.", action: p => { p.position = 0; p.cash += 200; } }
+        ];
+
+        class MonopolyGoEngine {
+            constructor() {
+                this.pin = "PN-2026";
+                this.currentPlayer = null;
+                this.players = [];
+                this.properties = {};
+                this.logs = [];
+                this.selectedPawn = "🚗";
+                this.channel = new BroadcastChannel('papernest_monopoly_go_final');
+
+                this.channel.onmessage = (e) => this.handleSync(e.data);
+            }
+
+            init() {
+                this.loadState();
+                this.renderBoard();
+                this.setupEventListeners();
+                lucide.createIcons();
+            }
+
+            loadState() {
+                const saved = localStorage.getItem(`monopoly_final_${this.pin}`);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    this.players = parsed.players || [];
+                    this.properties = parsed.properties || {};
+                    this.logs = parsed.logs || [];
+                }
+            }
+
+            saveState() {
+                const state = { players: this.players, properties: this.properties, logs: this.logs };
+                localStorage.setItem(`monopoly_final_${this.pin}`, JSON.stringify(state));
+                this.channel.postMessage({ type: 'SYNC', state });
+            }
+
+            handleSync(data) {
+                if (data.type === 'SYNC') {
+                    this.players = data.state.players;
+                    this.properties = data.state.properties;
+                    this.logs = data.state.logs;
+                    this.updateUI();
+                }
+            }
+
+            log(msg) {
+                const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                this.logs.unshift({ time, msg });
+                if (this.logs.length > 40) this.logs.pop();
+                this.saveState();
+                this.renderLogs();
+            }
+
+            registerPlayer(name, pawn) {
+                let player = this.players.find(p => p.name === name);
+                if (!player) {
+                    if (this.players.length >= 25) {
+                        alert("Limite atteinte (25 joueurs max).");
+                        return;
+                    }
+                    player = { id: 'player_' + Date.now(), name, pawn, cash: 1500, position: 0, rollsLeft: 2, salesCount: 1 };
+                    this.players.push(player);
+                    this.log(`🔥 ${name} (${pawn}) a rejoint le Floor !`);
+                }
+                this.currentPlayer = player;
+                this.saveState();
+                this.updateUI();
+            }
+
+            renderBoard() {
+                const boardEl = document.getElementById('monopoly-board');
+                boardEl.querySelectorAll('.board-cell').forEach(c => c.remove());
+
+                BOARD_SPACES.forEach((space, idx) => {
+                    const cell = document.createElement('div');
+                    cell.className = `board-cell p-1 flex flex-col justify-between rounded-xl ${this.getGridPositionClass(idx)}`;
+                    cell.dataset.id = idx;
+
+                    let colorHeader = '';
+                    if (space.color) {
+                        colorHeader = `<div class="h-2.5 w-full -mt-1 -mx-1 mb-1 rounded-t-lg" style="background-color: ${space.color}"></div>`;
+                    }
+
+                    cell.innerHTML = `
+                        ${colorHeader}
+                        <div class="font-black text-[9px] leading-tight text-slate-900 truncate font-game">${space.name}</div>
+                        <div class="mt-auto flex justify-between items-center text-[8px] font-black text-slate-500">
+                            <span>${space.price ? space.price + '€' : ''}</span>
+                            <div class="player-tokens-container flex flex-wrap gap-0.5 max-w-[40px]"></div>
+                        </div>
+                    `;
+
+                    cell.addEventListener('click', () => this.handleSpaceClick(space));
+                    boardEl.appendChild(cell);
+                });
+            }
+
+            getGridPositionClass(idx) {
+                if (idx >= 0 && idx <= 10) return `row-start-11 col-start-${11 - idx}`;
+                if (idx >= 11 && idx <= 20) return `col-start-1 row-start-${11 - (idx - 10)}`;
+                if (idx >= 21 && idx <= 30) return `row-start-1 col-start-${idx - 20}`;
+                if (idx >= 31 && idx <= 39) return `col-start-11 row-start-${idx - 30 + 1}`;
+            }
+
+            updateUI() {
+                if (!this.currentPlayer) return;
+
+                this.currentPlayer = this.players.find(p => p.id === this.currentPlayer.id) || this.currentPlayer;
+
+                document.getElementById('player-name-display').innerText = this.currentPlayer.name;
+                document.getElementById('player-cash-display').innerText = this.currentPlayer.cash.toLocaleString('fr-FR') + ' €';
+                document.getElementById('player-rolls-left').innerText = this.currentPlayer.rollsLeft;
+                document.getElementById('player-pawn-display').innerText = this.currentPlayer.pawn;
+
+                document.getElementById('btn-roll-dice').disabled = this.currentPlayer.rollsLeft <= 0;
+
+                this.renderTokens();
+                this.renderMyProperties();
+                this.renderLogs();
+            }
+
+            renderTokens() {
+                document.querySelectorAll('.player-tokens-container').forEach(c => c.innerHTML = '');
+                this.players.forEach(p => {
+                    const cell = document.querySelector(`.board-cell[data-id="${p.position}"] .player-tokens-container`);
+                    if (cell) {
+                        const token = document.createElement('span');
+                        token.className = "text-xs transition-transform transform hover:scale-125";
+                        token.innerText = p.pawn;
+                        token.title = p.name;
+                        cell.appendChild(token);
+                    }
+                });
+            }
+
+            rollDiceAnimation(finalD1, finalD2, callback) {
+                const die1El = document.getElementById('die-1');
+                const die2El = document.getElementById('die-2');
+
+                die1El.classList.add('dice-rolling');
+                die2El.classList.add('dice-rolling');
+
+                let count = 0;
+                const interval = setInterval(() => {
+                    die1El.innerText = Math.floor(Math.random() * 6) + 1;
+                    die2El.innerText = Math.floor(Math.random() * 6) + 1;
+                    count++;
+
+                    if (count > 10) {
+                        clearInterval(interval);
+                        die1El.classList.remove('dice-rolling');
+                        die2El.classList.remove('dice-rolling');
+                        die1El.innerText = finalD1;
+                        die2El.innerText = finalD2;
+                        callback();
+                    }
+                }, 80);
+            }
+
+            rollDice() {
+                if (!this.currentPlayer || this.currentPlayer.rollsLeft <= 0) return;
+
+                const d1 = Math.floor(Math.random() * 6) + 1;
+                const d2 = Math.floor(Math.random() * 6) + 1;
+                const total = d1 + d2;
+
+                this.currentPlayer.rollsLeft--;
+
+                this.rollDiceAnimation(d1, d2, () => {
+                    this.log(`🎲 ${this.currentPlayer.name} fait un ${total}.`);
+                    this.movePlayerStepByStep(total);
+                });
+            }
+
+            movePlayerStepByStep(steps) {
+                let remainingSteps = steps;
+
+                const stepInterval = setInterval(() => {
+                    this.currentPlayer.position = (this.currentPlayer.position + 1) % 40;
+
+                    if (this.currentPlayer.position === 0) {
+                        this.currentPlayer.cash += 200;
+                        this.log(`💰 ${this.currentPlayer.name} passe par Départ (+200 €).`);
+                    }
+
+                    this.renderTokens();
+                    remainingSteps--;
+
+                    if (remainingSteps <= 0) {
+                        clearInterval(stepInterval);
+                        this.saveState();
+                        this.updateUI();
+                        this.handleLanding(BOARD_SPACES[this.currentPlayer.position]);
+                    }
+                }, 200);
+            }
+
+            handleLanding(space) {
+                if (space.type === 'property' || space.type === 'station' || space.type === 'utility') {
+                    const prop = this.properties[space.id];
+                    if (!prop) {
+                        this.openPropertyModal(space, true);
+                    } else if (prop.ownerId !== this.currentPlayer.id) {
+                        const owner = this.players.find(p => p.id === prop.ownerId);
+                        const rent = space.rent ? space.rent[0] : 50;
+                        
+                        this.currentPlayer.cash -= rent;
+                        if (owner) owner.cash += rent;
+
+                        this.log(`💸 ${this.currentPlayer.name} paie ${rent} € à ${owner ? owner.name : 'inconnu'}.`);
+                        this.saveState();
+                        this.updateUI();
+                    }
+                } else if (space.type === 'tax') {
+                    this.currentPlayer.cash -= space.amount;
+                    this.log(`⚠️ Taxe ${space.name} (${space.amount} €).`);
+                    this.saveState();
+                    this.updateUI();
+                } else if (space.type === 'community') {
+                    const card = COMMUNITY_CARDS[Math.floor(Math.random() * COMMUNITY_CARDS.length)];
+                    this.showCardModal("COMMUNAUTÉ", card);
+                } else if (space.type === 'chance') {
+                    const card = CHANCE_CARDS[Math.floor(Math.random() * CHANCE_CARDS.length)];
+                    this.showCardModal("CHANCE", card);
+                }
+            }
+
+            declareSale() {
+                if (!this.currentPlayer) return;
+                this.currentPlayer.salesCount++;
+                this.currentPlayer.rollsLeft += 2;
+                this.log(`⚡ ${this.currentPlayer.name} A DÉCLARÉ UNE VENTE ! (+2 lancers)`);
+                this.saveState();
+                this.updateUI();
+            }
+
+            showCardModal(type, card) {
+                const modal = document.getElementById('card-modal');
+                document.getElementById('card-badge').innerText = type;
+                document.getElementById('card-title').innerText = card.title;
+                document.getElementById('card-desc').innerText = card.desc;
+
+                document.getElementById('btn-card-ok').onclick = () => {
+                    card.action(this.currentPlayer);
+                    this.saveState();
+                    this.updateUI();
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                };
+
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+
+            renderFullLeaderboard() {
+                const list = document.getElementById('full-leaderboard-list');
+                list.innerHTML = '';
+
+                const sorted = [...this.players].sort((a, b) => b.cash - a.cash);
+
+                sorted.forEach((p, idx) => {
+                    const item = document.createElement('div');
+                    item.className = `p-3 rounded-2xl bg-slate-100 border-2 ${p.id === this.currentPlayer?.id ? 'border-papernest-blue bg-blue-50' : 'border-slate-200'} flex items-center justify-between font-game`;
+                    item.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-black text-slate-400 w-5">#${idx + 1}</span>
+                            <span class="text-2xl">${p.pawn}</span>
+                            <div>
+                                <div class="text-sm font-black text-slate-900">${p.name}</div>
+                                <div class="text-[10px] font-bold text-slate-500">${p.salesCount} vente(s)</div>
+                            </div>
+                        </div>
+                        <div class="text-sm font-black text-papernest-blue">${p.cash.toLocaleString('fr-FR')} €</div>
+                    `;
+                    list.appendChild(item);
+                });
+            }
+
+            openPropertyModal(space, canBuy = false) {
+                const modal = document.getElementById('property-modal');
+                const header = document.getElementById('modal-card-header');
+                
+                header.style.backgroundColor = space.color || '#0F172A';
+                document.getElementById('modal-prop-name').innerText = space.name;
+                document.getElementById('modal-prop-price').innerText = space.price + ' €';
+                
+                document.getElementById('modal-rent-base').innerText = (space.rent ? space.rent[0] : 0) + ' €';
+
+                const btnBuy = document.getElementById('btn-modal-buy');
+                if (canBuy) {
+                    btnBuy.classList.remove('hidden');
+                    btnBuy.onclick = () => {
+                        if (this.currentPlayer.cash >= space.price) {
+                            this.currentPlayer.cash -= space.price;
+                            this.properties[space.id] = { ownerId: this.currentPlayer.id, houses: 0 };
+                            this.log(`🏛️ ${this.currentPlayer.name} a acheté ${space.name}.`);
+                            this.saveState();
+                            this.updateUI();
+                            modal.classList.add('hidden');
+                            modal.classList.remove('flex');
+                        } else {
+                            alert("Fonds insuffisants !");
+                        }
+                    };
+                } else {
+                    btnBuy.classList.add('hidden');
+                }
+
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+
+            renderMyProperties() {
+                const list = document.getElementById('my-properties-list');
+                list.innerHTML = '';
+
+                if (!this.currentPlayer) return;
+
+                const myProps = BOARD_SPACES.filter(s => this.properties[s.id]?.ownerId === this.currentPlayer.id);
+                document.getElementById('my-properties-count').innerText = myProps.length;
+
+                myProps.forEach(s => {
+                    const item = document.createElement('div');
+                    item.className = "p-2 rounded-xl bg-slate-100 border-2 border-slate-200 flex items-center justify-between text-xs font-game";
+                    item.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-5 rounded" style="background-color: ${s.color}"></div>
+                            <span class="font-black text-slate-800 text-[11px]">${s.name}</span>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            }
+
+            renderLogs() {
+                const logsEl = document.getElementById('game-logs');
+                logsEl.innerHTML = '';
+                this.logs.forEach(l => {
+                    const logItem = document.createElement('div');
+                    logItem.className = "border-b border-slate-200 pb-1";
+                    logItem.innerHTML = `<span class="text-slate-400">[${l.time}]</span> ${l.msg}`;
+                    logsEl.appendChild(logItem);
+                });
+            }
+
+            handleSpaceClick(space) {
+                if (space.type === 'property' || space.type === 'station' || space.type === 'utility') {
+                    this.openPropertyModal(space, false);
+                }
+            }
+
+            setupEventListeners() {
+                document.getElementById('pawn-selector').addEventListener('click', (e) => {
+                    const btn = e.target.closest('.pawn-btn');
+                    if (btn) {
+                        document.querySelectorAll('.pawn-btn').forEach(b => b.classList.remove('border-papernest-blue', 'bg-blue-50'));
+                        btn.classList.add('border-papernest-blue', 'bg-blue-50');
+                        this.selectedPawn = btn.dataset.pawn;
+                    }
+                });
+
+                document.getElementById('join-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const name = document.getElementById('name-input').value.trim();
+                    this.pin = document.getElementById('pin-input').value.trim();
+
+                    if (name) {
+                        this.registerPlayer(name, this.selectedPawn);
+                        document.getElementById('login-screen').classList.add('hidden');
+                    }
+                });
+
+                document.getElementById('btn-roll-dice').addEventListener('click', () => this.rollDice());
+                document.getElementById('btn-declare-sale').addEventListener('click', () => this.declareSale());
+
+                document.getElementById('btn-show-leaderboard').addEventListener('click', () => {
+                    this.renderFullLeaderboard();
+                    document.getElementById('leaderboard-modal').classList.remove('hidden');
+                    document.getElementById('leaderboard-modal').classList.add('flex');
+                });
+                document.getElementById('btn-close-leaderboard').addEventListener('click', () => {
+                    document.getElementById('leaderboard-modal').classList.add('hidden');
+                    document.getElementById('leaderboard-modal').classList.remove('flex');
+                });
+
+                // Mode Admin Event Handlers
+                document.getElementById('btn-open-admin').addEventListener('click', () => {
+                    const pwd = prompt("Entrez le mot de passe Admin :");
+                    if (pwd === "ADMIN2026") {
+                        const select = document.getElementById('admin-target-player');
+                        select.innerHTML = '';
+                        this.players.forEach(p => {
+                            const opt = document.createElement('option');
+                            opt.value = p.id;
+                            opt.innerText = p.name;
+                            select.appendChild(opt);
+                        });
+                        document.getElementById('admin-modal').classList.remove('hidden');
+                        document.getElementById('admin-modal').classList.add('flex');
+                    } else if (pwd !== null) {
+                        alert("Mot de passe incorrect.");
+                    }
+                });
+                document.getElementById('btn-close-admin').addEventListener('click', () => {
+                    document.getElementById('admin-modal').classList.add('hidden');
+                    document.getElementById('admin-modal').classList.remove('flex');
+                });
+
+                document.getElementById('admin-add-cash').addEventListener('click', () => {
+                    const pid = document.getElementById('admin-target-player').value;
+                    const p = this.players.find(pl => pl.id === pid);
+                    if (p) { p.cash += 500; this.saveState(); this.updateUI(); alert(`+500€ à ${p.name}`); }
+                });
+                document.getElementById('admin-sub-cash').addEventListener('click', () => {
+                    const pid = document.getElementById('admin-target-player').value;
+                    const p = this.players.find(pl => pl.id === pid);
+                    if (p) { p.cash -= 200; this.saveState(); this.updateUI(); alert(`-200€ à ${p.name}`); }
+                });
+                document.getElementById('admin-add-rolls').addEventListener('click', () => {
+                    const pid = document.getElementById('admin-target-player').value;
+                    const p = this.players.find(pl => pl.id === pid);
+                    if (p) { p.rollsLeft += 5; this.saveState(); this.updateUI(); alert(`+5 lancers à ${p.name}`); }
+                });
+                document.getElementById('admin-reset-game').addEventListener('click', () => {
+                    if (confirm("Réinitialiser toute la partie ?")) {
+                        localStorage.removeItem(`monopoly_final_${this.pin}`);
+                        location.reload();
+                    }
+                });
+
+                document.getElementById('btn-modal-close').addEventListener('click', () => {
+                    document.getElementById('property-modal').classList.add('hidden');
+                    document.getElementById('property-modal').classList.remove('flex');
+                });
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            window.game = new MonopolyGoEngine();
+            window.game.init();
+        });
+    </script>
+</body>
+</html>
